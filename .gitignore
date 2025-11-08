@@ -1,0 +1,60 @@
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+.DS_Store
+
+# Misc
+.cache/
+build/
+build-debug/
+cmake-build*/
+out/
+vs/
+.idea/
+.vscode/
+.vs/
+.codechecker/
+reports_html/
+compile_commands.json
+.clangd
+.zed/
+
+# mitsuba
+*.exr
+*.svg
+*.png
+*.mip
+*.log
+*.data
+*.old
+*.tar.gz
+data/sphere.obj
