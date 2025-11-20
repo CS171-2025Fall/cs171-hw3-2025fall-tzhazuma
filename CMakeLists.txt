@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.20)
 project(CS171-assignment4 LANGUAGES C CXX)
 # cmake_policy(SET CMP0135 NEW)
 
@@ -17,7 +17,7 @@ set(USE_SANITIZER
 )
 
 # Set C++ standard
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 23)
 
 # Include CPM
 include(data/CPM.cmake)

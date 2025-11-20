@@ -1,20 +1,20 @@
 # All packages required
-CPMAddPackage("gh:fmtlib/fmt#9.1.0")
-CPMAddPackage("gh:nlohmann/json@3.11.2")
+CPMAddPackage("gh:fmtlib/fmt#12.1.0")
+CPMAddPackage("gh:nlohmann/json@3.12.0")
 CPMAddPackage("gh:tinyobjloader/tinyobjloader#v2.0.0rc10")
-CPMAddPackage("gh:richgel999/miniz#3.0.2")
+CPMAddPackage("gh:richgel999/miniz#3.1.0")
 
 CPMAddPackage(
   NAME spdlog
   GIT_REPOSITORY https://github.com/gabime/spdlog.git
-  GIT_TAG v1.11.0
+  GIT_TAG v1.16.0
   OPTIONS "SPDLOG_FMT_EXTERNAL ON"
 )
 
 CPMAddPackage(
   NAME tinyexr
   GIT_REPOSITORY https://github.com/syoyo/tinyexr.git
-  GIT_TAG v1.0.2
+  GIT_TAG v1.0.12
   DOWNLOAD_ONLY YES
 )
 
