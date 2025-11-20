@@ -10,6 +10,8 @@
 #include "rdr/primitive.h"
 #include "rdr/ray.h"
 
+#include <algorithm>
+
 RDR_NAMESPACE_BEGIN
 
 template <typename DataType_>
@@ -143,7 +145,7 @@ typename BVHTree<_>::IndexType BVHTree<_>::build(
   // @see span_left: The left index of the current span
   // @see span_right: The right index of the current span
   //
-  /* if ( */ UNIMPLEMENTED; /* ) */
+  if (depth >= CUTOFF_DEPTH || span_right - span_left <= 1)  // 停止条件：深度过深或仅剩一个元素
   {
     // create leaf node
     const auto &node = nodes[span_left];
@@ -181,7 +183,21 @@ use_median_heuristic:
     //
     // You may find `std::nth_element` useful here.
 
-    UNIMPLEMENTED;
+    {
+      auto beginIt = nodes.begin() + span_left;
+      auto midIt   = nodes.begin() + split;
+      auto endIt   = nodes.begin() + span_right;
+      std::nth_element(beginIt, midIt, endIt, [dim](const NodeType &a, const NodeType &b) {
+        return a.getAABB().getCenter()[dim] < b.getAABB().getCenter()[dim];
+      });
+      if (split <= span_left || split >= span_right) {
+        InternalNode leaf(span_left, span_right);
+        leaf.is_leaf = true;
+        leaf.aabb    = prebuilt_aabb;
+        internal_nodes.push_back(leaf);
+        return internal_nodes.size() - 1;
+      }
+    }
 
     // clang-format on
   } else if (hprofile == EHeuristicProfile::ESurfaceAreaHeuristic) {
@@ -199,7 +215,52 @@ use_surface_area_heuristic:
     //
     // You can then set @see BVHTree::hprofile to ESurfaceAreaHeuristic to
     // enable this feature.
-    UNIMPLEMENTED;
+    {
+      // 简单 SAH 实现：先按质心排序，再线性扫描选择分割点
+      auto beginIt = nodes.begin() + span_left;
+      auto endIt   = nodes.begin() + span_right;
+      std::sort(beginIt, endIt, [dim](const NodeType &a, const NodeType &b) {
+        return a.getAABB().getCenter()[dim] < b.getAABB().getCenter()[dim];
+      });
+      int n = span_right - span_left;
+      if (n <= 2) {
+        split = span_left + (n / 2);
+      } else {
+        std::vector<AABB> prefix(n);
+        std::vector<AABB> suffix(n);
+        prefix[0] = nodes[span_left + 0].getAABB();
+        for (int i = 1; i < n; ++i)
+          prefix[i] = AABB(prefix[i - 1], nodes[span_left + i].getAABB());
+        suffix[n - 1] = nodes[span_left + (n - 1)].getAABB();
+        for (int i = n - 2; i >= 0; --i)
+          suffix[i] = AABB(suffix[i + 1], nodes[span_left + i].getAABB());
+
+        Float bestCost = Float_INF;
+        int bestSplit  = -1;
+        for (int i = 1; i < n; ++i) {  // 分成 [0,i) 和 [i,n)
+          Float leftArea  = prefix[i - 1].getSurfaceArea();
+          Float rightArea = suffix[i].getSurfaceArea();
+          Float cost      = (leftArea * static_cast<Float>(i)) + (rightArea * static_cast<Float>(n - i));
+          if (cost < bestCost) {
+            bestCost  = cost;
+            bestSplit = i;
+          }
+        }
+        if (bestSplit <= 0 || bestSplit >= n) {
+          split = span_left + (n / 2);
+        } else {
+          split = span_left + bestSplit;
+        }
+      }
+      // 若分割退化，直接做叶子
+      if (split == span_left || split == span_right) {
+        InternalNode leaf(span_left, span_right);
+        leaf.is_leaf = true;
+        leaf.aabb    = prebuilt_aabb;
+        internal_nodes.push_back(leaf);
+        return internal_nodes.size() - 1;
+      }
+    }
   }
 
   // Build the left and right subtree
@@ -221,7 +282,8 @@ bool BVHTree<_>::intersect(
   const auto &node = internal_nodes[node_index];
 
   // Perform the actual pruning
-  Float t_in, t_out;
+  Float t_in  = 0.0F;
+  Float t_out = 0.0F;
   if (!node.aabb.intersect(ray, &t_in, &t_out)) return result;
 
   if (node.is_leaf) {

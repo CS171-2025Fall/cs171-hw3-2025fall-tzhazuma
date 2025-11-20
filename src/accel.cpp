@@ -43,7 +43,30 @@ bool AABB::intersect(const Ray &ray, Float *t_in, Float *t_out) const {
   //    for getting the inverse direction of the ray.
   // @see Min/Max/ReduceMin/ReduceMax
   //    for vector min/max operations.
-  UNIMPLEMENTED;
+  
+  // Use the slab method for ray-AABB intersection
+  // For each axis, compute the intersection times with the two planes
+  Vec3f t_min_vec = (low_bnd - ray.origin) * ray.safe_inverse_direction;
+  Vec3f t_max_vec = (upper_bnd - ray.origin) * ray.safe_inverse_direction;
+  
+  // Handle negative direction (swap if needed)
+  Vec3f t_near = Min(t_min_vec, t_max_vec);
+  Vec3f t_far = Max(t_min_vec, t_max_vec);
+  
+  // Find the intersection interval by taking max of near and min of far
+  Float t_enter = ReduceMax(t_near);
+  Float t_exit = ReduceMin(t_far);
+  
+  // Check if there's a valid intersection
+  if (t_enter > t_exit || t_exit < 0) {
+    return false;
+  }
+  
+  // Set output values
+  *t_in = t_enter;
+  *t_out = t_exit;
+  
+  return true;
 }
 
 /* ===================================================================== *
@@ -92,10 +115,31 @@ bool TriangleIntersect(Ray &ray, const uint32_t &triangle_index,
   // You can use @see Cross and @see Dot for determinant calculations.
 
   // Delete the following lines after you implement the function
-  InternalScalarType u = InternalScalarType(0);
-  InternalScalarType v = InternalScalarType(0);
-  InternalScalarType t = InternalScalarType(0);
-  UNIMPLEMENTED;
+  auto u = InternalScalarType(0);
+  auto v = InternalScalarType(0);
+  auto t = InternalScalarType(0);
+  //solve the function here
+  //(1-u-v)v0 + uv1 + vv2 = ray.origin + t*ray.direction
+  InternalVecType edge1 = v1 - v0;
+  InternalVecType edge2 = v2 - v0;
+  InternalVecType h = Cross(dir, edge2);
+  InternalScalarType a = Dot(edge1, h);
+  if (a > -1e-8 && a < 1e-8)
+      return false;    // This ray is parallel to this triangle.
+  InternalScalarType f = 1.0 / a;
+  InternalVecType s = Cast<InternalScalarType>(ray.origin) - v0;
+  u = f * Dot(s, h);
+  if (u < 0.0 || u > 1.0)
+      return false;
+  InternalVecType q = Cross(s, edge1);
+  v = f * Dot(dir, q);
+  if (v < 0.0 || u + v > 1.0)
+      return false;
+  t = f * Dot(edge2, q);
+  if (t < ray.t_min || t > ray.t_max)
+      return false;
+  
+  //UNIMPLEMENTED;
 
   // We will reach here if there is an intersection
 

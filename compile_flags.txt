@@ -1,0 +1,16 @@
+-std=gnu++23
+-I./include
+-I./build/_deps/stb-src
+-I./build/_deps/linalg-src
+-I./build/_deps/spdlog-src/include
+-I./build/_deps/tinyexr-src
+-isystem./build/_deps/fmt-src/include
+-isystem./build/_deps/json-src/include
+-isystem./build/_deps/tinyobjloader-src
+-DSPDLOG_COMPILED_LIB
+-DSPDLOG_FMT_EXTERNAL
+-DTINYEXR_USE_MINIZ=1
+-DTINYEXR_USE_OPENMP=0
+-DTINYEXR_USE_PIZ=1
+-DTINYEXR_USE_STB_ZLIB=0
+-fopenmp

@@ -87,24 +87,20 @@ Vec3f PerfectRefraction::sample(
   // Corrected eta by direction
   Float eta_corrected = entering ? eta : 1.0F / eta;
 
-  // TODO(HW3): implement the refraction logic here.
-  //
-  // You should set the `interaction.wi` to the direction of the "in-coming
-  // light" after refraction or reflection. Note that `interaction.wi` should
-  // always point away from the surface.
-  //
-  // You may find the following values useful:
-  //
-  // `interaction.wo`: the out-going view direction, pointing away from the
-  // surface.
-  // `normal`: the normal of the surface at the interaction point, pointing
-  // away from the surface.
-  //
-  // You may find the following functions useful:
-  // @see Refract for refraction calculation.
-  // @see Reflect for reflection calculation.
-
-  UNIMPLEMENTED;
+  // 完美折射实现：尝试折射，若全反射则改为镜面反射
+  Vec3f wt;
+  // 调整法线方向：若从内部出射则翻转法线
+  Vec3f n_oriented = entering ? normal : -normal;
+  // 尝试折射计算；Refract 期望 wi 指向表面（与 wo 相反）
+  bool refracted = Refract(-interaction.wo, n_oriented, eta_corrected, wt);
+  
+  if (refracted) {
+    // 折射成功：设置入射方向为折射方向（已归一化且指向外）
+    interaction.wi = wt;
+  } else {
+    // 全反射：使用镜面反射公式
+    interaction.wi = Reflect(interaction.wo, n_oriented);
+  }
 
   // Set the pdf and return value, we dont need to understand the value now
   if (pdf != nullptr) *pdf = 1.0F;
