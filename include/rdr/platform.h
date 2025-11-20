@@ -63,14 +63,14 @@
 // TODO
 #define UNIMPLEMENTED assert(false)
 
-template <typename... T>
-RDR_FORCEINLINE decltype(auto) print(T &&...args) {
-  return fmt::print(std::forward<T>(args)...);
+template <typename S, typename... T>
+RDR_FORCEINLINE decltype(auto) print(const S& format_str, T&&... args) {
+  return fmt::print(fmt::runtime(format_str), std::forward<T>(args)...);
 }
 
-template <typename... T>
-RDR_FORCEINLINE decltype(auto) format(T &&...args) {
-  return fmt::format(std::forward<T>(args)...);
+template <typename S, typename... T>
+RDR_FORCEINLINE decltype(auto) format(const S& format_str, T&&... args) {
+  return fmt::format(fmt::runtime(format_str), std::forward<T>(args)...);
 }
 
 // Add suffix to avoid conflicts with other libraries.
