@@ -9,6 +9,7 @@
 #include "rdr/interaction.h"
 #include "rdr/load_obj.h"
 #include "rdr/ray.h"
+#include <iostream>
 
 RDR_NAMESPACE_BEGIN
 
@@ -292,6 +293,93 @@ AABB TriangleMesh::getBound() const {
 
 Float TriangleMesh::pdf(const SurfaceInteraction &) const {
   return 1.0_F / total_area;
+}
+
+/* ===================================================================== *
+ *
+ * Rect
+ *
+ * ===================================================================== */
+
+Rect::Rect(const Properties &props) : Shape(props) {
+  to_world = props.getProperty<Mat4f>("transform", IdentityMatrix4);
+  to_local = Inverse(to_world);
+}
+
+bool Rect::intersect(Ray &ray, SurfaceInteraction &interaction) const {
+  Vec3f d_local_vec = Mul(to_local, Vec4f(ray.direction, 0.0)).xyz();
+  Float len = Norm(d_local_vec);
+  if (len == 0) return false;
+  Vec3f d_local = d_local_vec / len;
+  Vec3f o_local = Mul(to_local, Vec4f(ray.origin, 1.0)).xyz();
+
+  Ray local_ray(o_local, d_local, ray.t_min * len, ray.t_max * len);
+
+  // Intersect with Z=0 plane
+  if (std::abs(d_local.z) < 1e-6) return false;
+  Float t_local = -o_local.z / d_local.z;
+
+  if (!local_ray.withinTimeRange(t_local)) return false;
+
+  Vec3f p_local = local_ray(t_local);
+  if (std::abs(p_local.x) > 0.5F || std::abs(p_local.y) > 0.5F) return false;
+
+  Float t = t_local / len;
+  ray.setTimeMax(t);
+
+  // Fill interaction
+  Vec3f n_local(0, 0, 1);
+  Vec3f n_world = Normalize(Mul(Transpose(to_local), Vec4f(n_local, 0)).xyz());
+  
+  if (Dot(n_world, ray.direction) > 0) n_world = -n_world;
+
+  Vec3f p_world = Mul(to_world, Vec4f(p_local, 1.0)).xyz();
+  Vec2f uv(p_local.x + 0.5F, p_local.y + 0.5F);
+
+  Vec3f dpdu = Mul(to_world, Vec4f(1, 0, 0, 0)).xyz();
+  Vec3f dpdv = Mul(to_world, Vec4f(0, 1, 0, 0)).xyz();
+
+  interaction.setDifferential(p_world, n_world, uv, dpdu, dpdv, Vec3f(0.0F), Vec3f(0.0F));
+
+  return true;
+}
+
+Float Rect::area() const {
+  Vec3f v1 = Mul(to_world, Vec4f(1, 0, 0, 0)).xyz();
+  Vec3f v2 = Mul(to_world, Vec4f(0, 1, 0, 0)).xyz();
+  return Norm(Cross(v1, v2));
+}
+
+SurfaceInteraction Rect::sample(Sampler &sampler) const {
+  Vec2f u = sampler.get2D();
+  Vec3f p_local(u.x - 0.5F, u.y - 0.5F, 0);
+  Vec3f p_world = Mul(to_world, Vec4f(p_local, 1.0)).xyz();
+
+  Vec3f n_local(0, 0, 1);
+  Vec3f n_world = Normalize(Mul(Transpose(to_local), Vec4f(n_local, 0)).xyz());
+
+  SurfaceInteraction interaction;
+  interaction.setGeneral(p_world, n_world);
+  interaction.setPdf(1.0F / area(), EMeasure::EArea);
+
+  return interaction;
+}
+
+AABB Rect::getBound() const {
+  Vec3f p0 = Mul(to_world, Vec4f(-0.5, -0.5, 0, 1)).xyz();
+  Vec3f p1 = Mul(to_world, Vec4f( 0.5, -0.5, 0, 1)).xyz();
+  Vec3f p2 = Mul(to_world, Vec4f( 0.5,  0.5, 0, 1)).xyz();
+  Vec3f p3 = Mul(to_world, Vec4f(-0.5,  0.5, 0, 1)).xyz();
+
+  AABB aabb(p0, p0);
+  aabb = AABB(aabb, p1);
+  aabb = AABB(aabb, p2);
+  aabb = AABB(aabb, p3);
+  return aabb;
+}
+
+Float Rect::pdf(const SurfaceInteraction &) const {
+  return 1.0F / area();
 }
 
 RDR_NAMESPACE_END

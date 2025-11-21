@@ -131,8 +131,37 @@ protected:
   Float total_area{};        //<! Total area of the mesh.
 };
 
+class Rect final : public Shape {
+public:
+  ~Rect() override = default;
+
+  // ++ Required by ConfigurableObject
+  Rect(const Properties &props);
+  // --
+
+  /// @see Shape::intersect
+  bool intersect(Ray &ray, SurfaceInteraction &interaction) const override;
+
+  /// @see Shape::area
+  Float area() const override;
+
+  /// @see Shape::sample
+  SurfaceInteraction sample(Sampler &sampler) const override;
+
+  /// @see Shape::getBound
+  AABB getBound() const override;
+
+  /// @see Shape::pdf
+  Float pdf(const SurfaceInteraction &interaction) const override;
+
+private:
+  Mat4f to_world;
+  Mat4f to_local;
+};
+
 RDR_REGISTER_CLASS(Sphere)
 RDR_REGISTER_CLASS(TriangleMesh)
+RDR_REGISTER_CLASS(Rect)
 
 RDR_REGISTER_FACTORY(Shape, [](const Properties &props) -> Shape * {
   auto type = props.getProperty<std::string>("type");
@@ -140,6 +169,8 @@ RDR_REGISTER_FACTORY(Shape, [](const Properties &props) -> Shape * {
     return Memory::alloc<TriangleMesh>(props);
   } else if (type == "sphere") {
     return Memory::alloc<Sphere>(props);
+  } else if (type == "rect") {
+    return Memory::alloc<Rect>(props);
   } else {
     Exception_("Shape type {} not supported", type);
   }

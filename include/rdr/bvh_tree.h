@@ -109,15 +109,15 @@ private:
  *
  * ===================================================================== */
 
-template <typename _>
-void BVHTree<_>::clear() {
+template <typename T>
+void BVHTree<T>::clear() {
   nodes.clear();
   internal_nodes.clear();
   is_built = false;
 }
 
-template <typename _>
-void BVHTree<_>::build() {
+template <typename T>
+void BVHTree<T>::build() {
   if (is_built) return;
   // pre-allocate memory
   internal_nodes.reserve(2 * nodes.size());
@@ -125,8 +125,8 @@ void BVHTree<_>::build() {
   is_built   = true;
 }
 
-template <typename _>
-typename BVHTree<_>::IndexType BVHTree<_>::build(
+template <typename T>
+typename BVHTree<T>::IndexType BVHTree<T>::build(
     int depth, const IndexType &span_left, const IndexType &span_right) {
   if (span_left >= span_right) return INVALID_INDEX;
 
@@ -135,9 +135,7 @@ typename BVHTree<_>::IndexType BVHTree<_>::build(
   for (IndexType span_index = span_left; span_index < span_right; ++span_index)
     prebuilt_aabb.unionWith(nodes[span_index].getAABB());
 
-  // TODO(HW3): setup the stop criteria
-  //
-  // You should fill in the stop criteria here.
+  // Setup the stop criteria
   //
   // You may find the following variables useful:
   //
@@ -170,12 +168,12 @@ typename BVHTree<_>::IndexType BVHTree<_>::build(
 
   if (hprofile == EHeuristicProfile::EMedianHeuristic) {
 use_median_heuristic:
-    split = span_left + count / 2;
+    split = span_left + (count / 2);
     // Sort the nodes
     // after which, all centroids in [span_left, split) are LT than right
     // clang-format off
 
-    // TODO(HW3): implement the median split here
+    // Implement the median split here
     //
     // You should sort the nodes in [span_left, span_right) according to
     // their centroid's `dim`-th dimension, such that all nodes in
@@ -211,7 +209,7 @@ use_surface_area_heuristic:
     // distributed random ray passing through B will also pass through A is the
     // ratio of their surface areas"
 
-    // TODO (BONUS): implement Surface area heuristic here
+    // Implement Surface area heuristic here
     //
     // You can then set @see BVHTree::hprofile to ESurfaceAreaHeuristic to
     // enable this feature.
@@ -274,9 +272,9 @@ use_surface_area_heuristic:
   return internal_nodes.size() - 1;
 }
 
-template <typename _>
+template <typename T>
 template <typename Callback>
-bool BVHTree<_>::intersect(
+bool BVHTree<T>::intersect(
     Ray &ray, const IndexType &node_index, Callback callback) const {
   bool result      = false;
   const auto &node = internal_nodes[node_index];

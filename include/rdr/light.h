@@ -210,7 +210,7 @@ private:
   }
 
   ref<Texture> texture{nullptr};
-  // ref<Distribution2D> distribution{nullptr};
+  ref<Distribution2D> distribution{nullptr};
 
   Vec3f scene_center{0.0};
   Float radius{1e3};  // TODO: to be refractored

@@ -98,8 +98,8 @@ public:
   }
 
 protected:
-  Vec3f directLighting(ref<Scene> scene, SurfaceInteraction &interaction,
-      Sampler &sampler) const;
+  static Vec3f directLighting(ref<Scene> scene, SurfaceInteraction &interaction,
+      Sampler &sampler);
 
   int max_depth, spp;
 };

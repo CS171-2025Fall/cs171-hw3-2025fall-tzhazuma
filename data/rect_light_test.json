@@ -1,0 +1,64 @@
+{
+  "integrator": {
+    "type": "path",
+    "max_depth": 5,
+    "spp": 64
+  },
+  "film": {
+    "resolution": [ 512, 512 ]
+  },
+  "camera": {
+    "position": [ 0, 1, 4 ],
+    "look_at": [ 0, 1, 0 ],
+    "ref_up": [ 0, 1, 0 ],
+    "fov": 45,
+    "focal_length": 1.0
+  },
+  "textures": {
+    "white": { "type": "constant", "color": [ 0.8, 0.8, 0.8 ] },
+    "red": { "type": "constant", "color": [ 0.8, 0.1, 0.1 ] },
+    "green": { "type": "constant", "color": [ 0.1, 0.8, 0.1 ] }
+  },
+  "materials": {
+    "white_diffuse": { "type": "diffuse", "texture_name": "white" },
+    "red_diffuse": { "type": "diffuse", "texture_name": "red" },
+    "green_diffuse": { "type": "diffuse", "texture_name": "green" }
+  },
+  "objects": [
+    {
+      "type": "rect",
+      "transform": [
+        1, 0, 0, 0,
+        0, 0, -1, 1.9,
+        0, 1, 0, 0,
+        0, 0, 0, 1
+      ],
+      "light": {
+        "type": "area",
+        "radiance": [ 20, 20, 20 ]
+      }
+    },
+    {
+      "type": "sphere",
+      "center": [ -0.6, 0.5, 0 ],
+      "radius": 0.5,
+      "material_name": "red_diffuse"
+    },
+    {
+      "type": "sphere",
+      "center": [ 0.6, 0.5, 0.5 ],
+      "radius": 0.5,
+      "material_name": "green_diffuse"
+    },
+    {
+      "type": "rect",
+      "transform": [
+        10, 0, 0, 0,
+        0, 0, 10, 0,
+        0, -10, 0, 0,
+        0, 0, 0, 1
+      ],
+      "material_name": "white_diffuse"
+    }
+  ]
+}

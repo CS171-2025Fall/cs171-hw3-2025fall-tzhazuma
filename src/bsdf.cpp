@@ -42,14 +42,22 @@ Vec3f IdealDiffusion::evaluate(SurfaceInteraction &interaction) const {
 }
 
 Float IdealDiffusion::pdf(SurfaceInteraction &interaction) const {
-  // This is left as the next assignment
-  UNIMPLEMENTED;
+  const Vec3f normal = obtainOrientedNormal(interaction, twosided);
+  Float cos_theta = Dot(interaction.wi, normal);
+  if (cos_theta <= 0) return 0.0F;
+  return cos_theta * INV_PI;
 }
 
 Vec3f IdealDiffusion::sample(
     SurfaceInteraction &interaction, Sampler &sampler, Float *out_pdf) const {
-  // This is left as the next assignment
-  UNIMPLEMENTED;
+  const Vec3f normal = obtainOrientedNormal(interaction, twosided);
+  Frame frame(normal);
+  Vec3f local_wi = CosineSampleHemisphere(sampler.get2D());
+  interaction.wi = frame.LocalToWorld(local_wi);
+  
+  if (out_pdf != nullptr) *out_pdf = local_wi.z * INV_PI;
+  
+  return evaluate(interaction);
 }
 
 /// return whether the bsdf is perfect transparent or perfect reflection

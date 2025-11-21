@@ -9,6 +9,10 @@ RDR_REGISTER_FACTORY(Integrator, [](const Properties &props) -> Integrator * {
   auto type = props.getProperty<std::string>("type", "path");
   if (type == "intersection_test") {
     return Memory::alloc<IntersectionTestIntegrator>(props);
+  } else if (type == "path") {
+    return Memory::alloc<PathIntegrator>(props);
+  } else if (type == "incremental_path") {
+    return Memory::alloc<IncrementalPathIntegrator>(props);
   } else {
     Exception_("Integrator type {} not found", type);
   }

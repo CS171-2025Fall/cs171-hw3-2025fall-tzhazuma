@@ -56,7 +56,7 @@ Properties::Properties(const json &j) {
               Exception_("json array size not matched");
             }
 
-            if (isFloatArray(property)) {
+            if (isFloatArray(property) || property.size() == 16) {
               if (property.size() == 2)
                 result[name] = Vec2f(property[0], property[1]);
               else if (property.size() == 3)

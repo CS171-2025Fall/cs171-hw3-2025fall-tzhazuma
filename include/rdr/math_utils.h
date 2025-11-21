@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <array>
+#include <memory>
 #include <random>
 
 #include "rdr/canary.h"
@@ -316,30 +317,36 @@ enum class EMeasure {
 };
 
 RDR_FORCEINLINE Vec2f UniformSampleDisk(const Vec2f &u) {
-  // This is left as the next assignment
-  UNIMPLEMENTED;
+  Float r = std::sqrt(u.x);
+  Float theta = 2 * PI * u.y;
+  return {r * std::cos(theta), r * std::sin(theta)};
 }
 
 RDR_FORCEINLINE Vec3f UniformSampleHemisphere(const Vec2f &u) {
-  // This is left as the next assignment
-  UNIMPLEMENTED;
+  Float z = u.x;
+  Float r = std::sqrt(std::max((Float)0, (Float)1. - (z * z)));
+  Float phi = 2 * PI * u.y;
+  return {r * std::cos(phi), r * std::sin(phi), z};
 }
 
 RDR_FORCEINLINE Vec3f CosineSampleHemisphere(const Vec2f &u) {
-  // This is left as the next assignment
-  UNIMPLEMENTED;
+  Vec2f d = UniformSampleDisk(u);
+  Float z = std::sqrt(std::max((Float)0, (Float)1 - (d.x * d.x) - (d.y * d.y)));
+  return {d.x, d.y, z};
 }
 
 RDR_FORCEINLINE Vec3f UniformSampleSphere(const Vec2f &u) {
-  // This is left as the next assignment
-  UNIMPLEMENTED;
+  Float z = 1 - (2 * u.x);
+  Float r = std::sqrt(std::max((Float)0, (Float)1 - (z * z)));
+  Float phi = 2 * PI * u.y;
+  return {r * std::cos(phi), r * std::sin(phi), z};
 }
 
 RDR_FORCEINLINE Vec3f UniformSampleTriangle(const Vec2f &u) {
   Float su0 = std::sqrt(u.x);
   Float b0  = 1 - su0;
   Float b1  = u.y * su0;
-  return Vec3f(b0, b1, 1.f - b0 - b1);
+  return Vec3f(b0, b1, 1.0F - b0 - b1);
 }
 
 /*
@@ -377,7 +384,7 @@ struct Distribution1D {
   Distribution1D(const Float *f, int n) : func(f, f + n), cdf(n + 1) {
     // Compute integral of step function at $x_i$
     cdf[0] = 0;
-    for (int i = 1; i < n + 1; ++i) cdf[i] = cdf[i - 1] + func[i - 1] / n;
+    for (int i = 1; i < n + 1; ++i) cdf[i] = cdf[i - 1] + (func[i - 1] / static_cast<Float>(n));
 
     // Transform step function integral into CDF
     funcInt = cdf[n];
@@ -402,25 +409,25 @@ struct Distribution1D {
     IsAllValid(du);
 
     // Compute PDF for sampled offset
-    if (pdf) *pdf = (funcInt > 0) ? func[offset] / funcInt : 0;
+    if (pdf != nullptr) *pdf = (funcInt > 0) ? func[offset] / funcInt : 0;
 
     // Return $x\in{}[0,1)$ corresponding to sample
-    return (offset + du) / size();
+    return (offset + du) / static_cast<Float>(size());
   }
   int sampleDiscrete(
       Float u, Float *pdf = nullptr, Float *uRemapped = nullptr) const {
     // Find surrounding CDF segments and _offset_
     int offset = FindInterval(
         (int)cdf.size(), [&](int index) { return cdf[index] <= u; });
-    if (pdf) *pdf = (funcInt > 0) ? func[offset] / (funcInt * size()) : 0;
-    if (uRemapped)
+    if (pdf != nullptr) *pdf = (funcInt > 0) ? func[offset] / (funcInt * static_cast<Float>(size())) : 0;
+    if (uRemapped != nullptr)
       *uRemapped = (u - cdf[offset]) / (cdf[offset + 1] - cdf[offset]);
-    if (uRemapped) assert(*uRemapped >= 0.f && *uRemapped <= 1.f);
+    if (uRemapped != nullptr) assert(*uRemapped >= 0.0F && *uRemapped <= 1.0F);
     return offset;
   }
   Float discretePDF(int index) const {
     assert(index >= 0 && index < size());
-    return func[index] / (funcInt * size());
+    return func[index] / (funcInt * static_cast<Float>(size()));
   }
   Float getIntegral() const { return funcInt; }
 
@@ -431,9 +438,11 @@ struct Distribution1D {
 private:
   template <typename Predicate>
   int FindInterval(int size, const Predicate &pred) const {
-    int first = 0, len = size;
+    int first = 0;
+    int len = size;
     while (len > 0) {
-      int half = len >> 1, middle = first + half;
+      int half = len >> 1;
+      int middle = first + half;
       // Bisect range based on value of _pred_ at _middle_
       if (pred(middle)) {
         first = middle + 1;
@@ -445,14 +454,51 @@ private:
   }
 };
 
+struct Distribution2D {
+  std::vector<std::unique_ptr<Distribution1D>> pConditionalV;
+  std::unique_ptr<Distribution1D> pMarginal;
+
+  Distribution2D(const Float *data, int nu, int nv) {
+    pConditionalV.reserve(nv);
+    for (int v = 0; v < nv; ++v) {
+      // Compute conditional distribution of u given v
+      pConditionalV.emplace_back(new Distribution1D(&data[v * nu], nu));
+    }
+    // Compute marginal distribution of v
+    std::vector<Float> marginalFunc;
+    marginalFunc.reserve(nv);
+    for (int v = 0; v < nv; ++v) {
+      marginalFunc.push_back(pConditionalV[v]->funcInt);
+    }
+    pMarginal.reset(new Distribution1D(marginalFunc.data(), nv));
+  }
+
+  Vec2f sampleContinuous(const Vec2f &u, Float *pdf) const {
+    Float pdfs[2];
+    int v;
+    Float d1 = pMarginal->sampleContinuous(u[1], &pdfs[1], &v);
+    Float d0 = pConditionalV[v]->sampleContinuous(u[0], &pdfs[0]);
+    *pdf     = pdfs[0] * pdfs[1];
+    return {d0, d1};
+  }
+
+  Float pdf(const Vec2f &p) const {
+    int iu = std::clamp<int>(p[0] * pConditionalV[0]->size(), 0,
+        pConditionalV[0]->size() - 1);
+    int iv = std::clamp<int>(p[1] * pMarginal->size(), 0,
+        pMarginal->size() - 1);
+    return pConditionalV[iv]->func[iu] / pMarginal->funcInt;
+  }
+};
+
 struct BeckmannDistribution {
   Float alpha_x, alpha_y;
 
   static Float roughnessToAlpha(Float roughness) {
     roughness = std::max(roughness, (Float)1e-3);
     Float x   = std::log(roughness);
-    return 1.62142f + 0.819955f * x + 0.1734f * x * x + 0.0171201f * x * x * x +
-           0.000640711f * x * x * x * x;
+    return 1.62142F + (0.819955F * x) + (0.1734F * x * x) + (0.0171201F * x * x * x) +
+           (0.000640711F * x * x * x * x);
   }
 
   BeckmannDistribution(Float alpha) : alpha_x(alpha), alpha_y(alpha) {}
@@ -472,10 +518,10 @@ struct BeckmannDistribution {
     Float abs_tan_theta = std::abs(TanTheta(w));
     if (std::isinf(abs_tan_theta)) return 0.;
     Float alpha = std::sqrt(
-        Cos2Phi(w) * alpha_x * alpha_x + Sin2Phi(w) * alpha_y * alpha_y);
+        (Cos2Phi(w) * alpha_x * alpha_x) + (Sin2Phi(w) * alpha_y * alpha_y));
     Float a = 1 / (alpha * abs_tan_theta);
-    if (a >= 1.6f) return 0;
-    return (1 - 1.259f * a + 0.396f * a * a) / (3.535f * a + 2.181f * a * a);
+    if (a >= 1.6F) return 0;
+    return (1 - (1.259F * a) + (0.396F * a * a)) / ((3.535F * a) + (2.181F * a * a));
   }
 
   Float G1(const Vec3f &w) const { return 1 / (1 + lambda(w)); }
@@ -489,8 +535,8 @@ struct BeckmannDistribution {
   }
 
   Vec3f sampleWh(const Vec3f &wo, const Vec2f &u) const {
-    Float tan2_theta;
-    Float phi;
+    Float tan2_theta = 0;
+    Float phi = 0;
     if (alpha_x == alpha_y) {
       Float log_sample = std::log(1 - u[0]);
       tan2_theta       = -alpha_x * alpha_x * log_sample;
@@ -498,7 +544,7 @@ struct BeckmannDistribution {
     } else {
       // distribution
       Float log_sample = std::log(1 - u[0]);
-      phi = std::atan(alpha_y / alpha_x * std::tan(2 * PI * u[1] + 0.5f * PI));
+      phi = std::atan((alpha_y / alpha_x) * std::tan((2 * PI * u[1]) + (0.5F * PI)));
       if (u[1] > 0.5F) phi += PI;
       Float sin_phi    = std::sin(phi);
       Float cos_phi    = std::cos(phi);

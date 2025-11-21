@@ -56,9 +56,13 @@ bool AABB::intersect(const Ray &ray, Float *t_in, Float *t_out) const {
   // Find the intersection interval by taking max of near and min of far
   Float t_enter = ReduceMax(t_near);
   Float t_exit = ReduceMin(t_far);
+
+  // Clip with ray t_min and t_max
+  t_enter = std::max(t_enter, ray.t_min);
+  t_exit = std::min(t_exit, ray.t_max);
   
   // Check if there's a valid intersection
-  if (t_enter > t_exit || t_exit < 0) {
+  if (t_enter > t_exit) {
     return false;
   }
   
@@ -114,10 +118,6 @@ bool TriangleIntersect(Ray &ray, const uint32_t &triangle_index,
   // Useful Functions:
   // You can use @see Cross and @see Dot for determinant calculations.
 
-  // Delete the following lines after you implement the function
-  auto u = InternalScalarType(0);
-  auto v = InternalScalarType(0);
-  auto t = InternalScalarType(0);
   //solve the function here
   //(1-u-v)v0 + uv1 + vv2 = ray.origin + t*ray.direction
   InternalVecType edge1 = v1 - v0;
@@ -128,19 +128,17 @@ bool TriangleIntersect(Ray &ray, const uint32_t &triangle_index,
       return false;    // This ray is parallel to this triangle.
   InternalScalarType f = 1.0 / a;
   InternalVecType s = Cast<InternalScalarType>(ray.origin) - v0;
-  u = f * Dot(s, h);
+  InternalScalarType u = f * Dot(s, h);
   if (u < 0.0 || u > 1.0)
       return false;
   InternalVecType q = Cross(s, edge1);
-  v = f * Dot(dir, q);
+  InternalScalarType v = f * Dot(dir, q);
   if (v < 0.0 || u + v > 1.0)
       return false;
-  t = f * Dot(edge2, q);
+  InternalScalarType t = f * Dot(edge2, q);
   if (t < ray.t_min || t > ray.t_max)
       return false;
   
-  //UNIMPLEMENTED;
-
   // We will reach here if there is an intersection
 
   CalculateTriangleDifferentials(interaction,
@@ -149,7 +147,7 @@ bool TriangleIntersect(Ray &ray, const uint32_t &triangle_index,
       mesh, triangle_index);
   AssertNear(interaction.p, ray(t));
   assert(ray.withinTimeRange(t));
-  ray.setTimeMax(t);
+  ray.setTimeMax(static_cast<Float>(t));
   return true;
 }
 
@@ -157,7 +155,7 @@ void Accel::setTriangleMesh(const ref<TriangleMeshResource> &mesh) {
   // Build the bounding box
   AABB bound(Vec3f(Float_INF, Float_INF, Float_INF),
       Vec3f(Float_MINUS_INF, Float_MINUS_INF, Float_MINUS_INF));
-  for (auto &vertex : mesh->vertices) {
+  for (const auto &vertex : mesh->vertices) {
     bound.low_bnd   = Min(bound.low_bnd, vertex);
     bound.upper_bnd = Max(bound.upper_bnd, vertex);
   }
